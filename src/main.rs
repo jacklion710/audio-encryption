@@ -1,44 +1,31 @@
-use hound;
-use rand::seq::SliceRandom;
-use rand::{SeedableRng, rngs::StdRng};
+mod encryptor;
+mod decryptor;
+
+use std::env;
+use std::path::Path;
 
 fn main() {
-    let input_path = "audio/raw/sine-c.wav";
-    let output_path = "audio/encrypted/sine-c-encr.wav";
-    let seed = 123456789; // This acts as the "encryption key"
+    let args: Vec<String> = env::args().collect();
+    if args.len() < 5 {
+        eprintln!("Usage: {} [encrypt|decrypt] <input_path> <output_path> <keys_path>", args[0]);
+        std::process::exit(1);
+    }
 
-    // Read the input WAV file
-    let mut reader = hound::WavReader::open(input_path).expect("Failed to open WAV file");
-    let spec = reader.spec();
+    let mode = &args[1];
+    let input_path = Path::new(&args[2]);
+    let output_path = Path::new(&args[3]);
+    let keys_path = Path::new(&args[4]);
 
-    let mut rng = StdRng::seed_from_u64(seed);
+    // Example: Read the seed from keys_path, for simplicity assume it's directly the seed
+    let seed = std::fs::read_to_string(keys_path)
+        .expect("Failed to read seed from keys file")
+        .trim()
+        .parse::<u64>()
+        .expect("Failed to parse seed as u64");
 
-    match spec.sample_format {
-        hound::SampleFormat::Float => {
-            if spec.bits_per_sample == 32 {
-                // Handle 32-bit floating-point samples
-                let samples: Vec<f32> = reader.samples::<f32>()
-                    .map(|s| s.expect("Failed to read sample"))
-                    .collect();
-
-                let mut scrambled_samples = samples.clone();
-                scrambled_samples.shuffle(&mut rng);
-
-                let mut writer = hound::WavWriter::create(output_path, spec)
-                    .expect("Failed to create output WAV file");
-                for sample in scrambled_samples {
-                    writer.write_sample(sample).expect("Failed to write sample");
-                }
-
-                writer.finalize().expect("Failed to finalize WAV file");
-                println!("Scrambling complete. Output saved to {}", output_path);
-            } else {
-                println!("Unsupported bits per sample for float format.");
-            }
-        },
-        hound::SampleFormat::Int => {
-            // Your existing handling for integer samples goes here...
-            println!("This example now also supports 32-bit floating-point samples.");
-        }
+    match mode.as_str() {
+        "encrypt" => encryptor::encrypt(input_path, output_path, seed),
+        "decrypt" => decryptor::decrypt(input_path, output_path, seed),
+        _ => eprintln!("Invalid mode: {}. Use 'encrypt' or 'decrypt'.", mode),
     }
 }
