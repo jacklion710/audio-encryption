@@ -22,7 +22,7 @@ Ensure you have Rust and Cargo installed on your system. You can download them f
 Clone the repository to your local machine:
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/jacklion710/audio-encryption.git
 cd audio-encryption
 ```
 
