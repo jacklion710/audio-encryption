@@ -12,7 +12,7 @@ This project demonstrates a simple audio processing experiment that encrypts and
   - `raw/`: Contains original audio files.
   - `encrypted/`: Contains audio files after encryption.
   - `decrypted/`: Contains audio files after decryption.
-- `keys/`: Directory containing the seed used for encryption and decryption.
+- `keys/`: Directory containing the key and nonce used for encryption and decryption.
 - `Cargo.toml`: Rust's package manifest file.
 
 ## Setup
@@ -32,18 +32,18 @@ The application supports two modes of operation: `encrypt` and `decrypt`. You ne
 
 ## Encrypting an Audio File
 ```bash
-cargo run encrypt audio/raw/sine-c.wav audio/encrypted/sine-c-encr.wav keys/seed.txt
+cargo run encrypt audio/raw/sine-c.wav audio/encrypted/sine-c-encr.wav keys/sin-c-key.txt keys/sin-c-nonce.txt
 ```
 
-This command will read `sine-c.wav` from the `audio/raw` directory, encrypt it using the seed provided in `keys/seed.txt`, and save the encrypted file as `sine-c-encr.wav` in the `audio/encrypted` directory.
+This command will read `sine-c.wav` from the `audio/raw` directory, encrypt it using a key and nonce then saves the key in `keys/sin-c-key.txt` and the nonce in `keys/sin-c-nonce.txt`, and save the encrypted file as `sine-c-encr.wav` in the `audio/encrypted` directory.
 
 # Decrypting an Audio File
 
 ```bash
-cargo run decrypt audio/encrypted/sine-c-encr.wav audio/decrypted/sine-c-decr.wav keys/seed.txt
+cargo run decrypt audio/encrypted/sin-c-encr.wav audio/decrypted/sin-c-decr.wav keys/sin-c-key.txt keys/sin-c-nonce.txt
 ```
 
-This command will read `sine-c-encr.wav` from the `audio/encrypted` directory, decrypt it using the seed provided in `keys/seed.txt`, and save the decrypted file as `sine-c-decr.wav` in the `audio/decrypted` directory.
+This command will read `sin-c-encr.wav` from the `audio/encrypted` directory, decrypt it using the seed provided in `keys/sin-c-key.txt` and `keys/sin-c-nonce.txt`, and save the decrypted file as `sin-c-decr.wav` in the `audio/decrypted` directory.
 
 ## Note on Security
 
