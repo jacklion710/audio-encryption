@@ -1,6 +1,6 @@
 # Audio Encryption Project
 
-This project demonstrates a simple audio processing experiment that encrypts and decrypts WAV audio files using sample cryptography based on RNG modulations. The project is structured to allow encryption and decryption through command-line arguments, providing a flexible way to process audio files. So far I have discovered that traditional encryption techniques can't apply directly to waveform samples. So in this app I experiment with a way to 'encrypt' audio data with pseudo-random modulation sequences.
+This project demonstrates a simple audio processing experiment that encrypts and decrypts WAV audio files using sample cryptography based on RNG modulations. The project is structured to allow encryption and decryption through command-line arguments, providing a flexible way to process audio files. So far I have discovered that traditional encryption techniques can't apply directly to waveform samples. So in this app I experiment with a way to 'encrypt' audio data with pseudo-random modulation sequences. The current implmentation only supports operations on 16 bit wav files.
 
 ## Project Structure
 
