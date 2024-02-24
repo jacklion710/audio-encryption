@@ -1,6 +1,6 @@
 # Audio Encryption Project
 
-This project demonstrates a simple audio processing experiment that encrypts and decrypts WAV audio files using sample cryptography based on key values and nonces. The project is structured to allow encryption and decryption through command-line arguments, providing a flexible way to process audio files.
+This project demonstrates a simple audio processing experiment that encrypts and decrypts WAV audio files using sample cryptography based on key values and nonces. The project is structured to allow encryption and decryption through command-line arguments, providing a flexible way to process audio files. So far I have discovered that traditional encryption techniques can't apply directly to waveform samples. The next step is to determine a way to 'encrypt' audio data such as pseudo-random modulations.
 
 ## Project Structure
 
