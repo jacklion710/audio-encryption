@@ -1,47 +1,46 @@
-use hound;
-use rand::{seq::SliceRandom, SeedableRng, rngs::StdRng};
+use hound::{WavWriter, Error as HoundError};
+use sodiumoxide::crypto::secretbox;
+use std::fs::File;
+use std::io::{self, Read};
 use std::path::Path;
+use sodiumoxide::init;
 
-pub fn decrypt(input_path: &Path, output_path: &Path, seed: u64) {
-    // Open the input WAV file
-    let mut reader = hound::WavReader::open(input_path)
-        .expect("Failed to open input WAV file");
+pub fn decrypt_audio(input_path: &Path, output_path: &Path, key_path: &Path, nonce_path: &Path) -> Result<(), io::Error> {
+    init().expect("Failed to initialize sodiumoxide");
 
-    // Obtain the specifications of the audio file
-    let spec = reader.spec();
+    let mut key_bytes = vec![0u8; secretbox::KEYBYTES];
+    let mut nonce_bytes = vec![0u8; secretbox::NONCEBYTES];
+    let mut encrypted_data = Vec::new();
+    File::open(input_path)?.read_to_end(&mut encrypted_data)?;
+    File::open(key_path)?.read_exact(&mut key_bytes)?;
+    File::open(nonce_path)?.read_exact(&mut nonce_bytes)?;
+    let key = secretbox::Key::from_slice(&key_bytes).unwrap();
+    let nonce = secretbox::Nonce::from_slice(&nonce_bytes).unwrap();
 
-    // Initialize the random number generator with the provided seed
-    let mut rng = StdRng::seed_from_u64(seed);
+    let decrypted_data = secretbox::open(&encrypted_data, &nonce, &key)
+        .expect("Decryption failed");
 
-    // The decryption process would ideally reverse the encryption process.
-    // For the sake of this example, we follow the same steps as encryption, 
-    // acknowledging this does not truly "decrypt" in a traditional sense.
-    match spec.sample_format {
-        hound::SampleFormat::Float if spec.bits_per_sample == 32 => {
-            // Handle 32-bit floating-point samples
-            let samples: Vec<f32> = reader.samples::<f32>()
-                .map(|s| s.expect("Failed to read sample"))
-                .collect();
+    let samples = decrypted_data
+        .chunks_exact(2)
+        .map(|chunk| i16::from_ne_bytes([chunk[0], chunk[1]]))
+        .collect::<Vec<i16>>();
 
-            // "Decrypt" the samples (this step is conceptual under the current approach)
-            let mut decrypted_samples = samples.clone();
-            decrypted_samples.shuffle(&mut rng);
+    let spec = hound::WavSpec {
+        channels: 2,
+        sample_rate: 44100,
+        bits_per_sample: 16,
+        sample_format: hound::SampleFormat::Int,
+    };
+    let mut writer = WavWriter::create(output_path, spec).map_err(io_error)?;
 
-            // Create the output WAV file
-            let mut writer = hound::WavWriter::create(output_path, spec)
-                .expect("Failed to create output WAV file");
-
-            // Write the "decrypted" samples to the output file
-            for sample in decrypted_samples {
-                writer.write_sample(sample)
-                    .expect("Failed to write sample");
-            }
-
-            // Finalize the WAV file to ensure all data is flushed
-            writer.finalize().expect("Failed to finalize WAV file");
-        },
-        _ => panic!("Unsupported sample format or bit depth"),
+    for sample in samples {
+        writer.write_sample(sample).map_err(io_error)?;
     }
+    writer.finalize().map_err(io_error)?;
 
-    println!("Decryption complete. Output saved to {:?}", output_path);
+    Ok(())
+}
+
+fn io_error(e: HoundError) -> io::Error {
+    io::Error::new(io::ErrorKind::Other, e.to_string())
 }
