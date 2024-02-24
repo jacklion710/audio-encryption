@@ -1,55 +1,31 @@
-use hound::{SampleFormat, WavReader, Error as HoundError};
-use sodiumoxide::crypto::secretbox;
+use hound;
+use rand::prelude::*;
+use serde_json;
 use std::fs::File;
-use std::io::{self, Write, BufWriter};
-use std::path::Path;
-use sodiumoxide::init;
 
-// Function to encrypt audio data
-pub fn encrypt_audio(input_path: &Path, output_path: &Path, key_path: &Path, nonce_path: &Path) -> Result<(), io::Error> {
-    init().expect("Failed to initialize sodiumoxide");
-
-    let key = secretbox::gen_key();
-    let nonce = secretbox::gen_nonce();
-    let mut key_file = File::create(key_path)?;
-    key_file.write_all(&key.0)?;
-    let mut nonce_file = File::create(nonce_path)?;
-    nonce_file.write_all(&nonce.0)?;
-
-    let mut reader = WavReader::open(input_path).map_err(io_error)?;
+pub fn encrypt_audio(input_path: &str, output_path: &str, key_path: &str) {
+    let reader = hound::WavReader::open(input_path).expect("Failed to open WAV reader");
+    
     let spec = reader.spec();
+    let samples: Vec<i16> = reader.into_samples::<i16>().map(|s| s.unwrap()).collect();
 
-    // Check for 16-bit PCM, 32-bit PCM, or 32-bit float formats
+    let mut rng = thread_rng();
     let mut encrypted_samples = Vec::new();
-    match (spec.sample_format, spec.bits_per_sample) {
-        (SampleFormat::Int, 16) => {
-            for sample in reader.samples::<i16>() {
-                let sample = sample.map_err(io_error)?;
-                let sample_bytes = sample.to_ne_bytes();
-                let encrypted_data = secretbox::seal(&sample_bytes, &nonce, &key);
-                encrypted_samples.extend_from_slice(&encrypted_data);
-            }
-        },
-        (SampleFormat::Float, 32) => {
-            for sample in reader.samples::<f32>() {
-                let sample = sample.map_err(io_error)?;
-                let sample_bytes = sample.to_ne_bytes();
-                let encrypted_data = secretbox::seal(&sample_bytes, &nonce, &key);
-                encrypted_samples.extend_from_slice(&encrypted_data);
-            }
-        },
-        // Add case for 32-bit integer PCM if needed
-        _ => return Err(io::Error::new(io::ErrorKind::Other, "Unsupported sample format or bits per sample")),
+    let mut key_samples = Vec::new();
+
+    for sample in samples {
+        let key_sample: i16 = rng.gen_range(-32768..=32767);
+        let encrypted_sample = sample.wrapping_add(key_sample);
+        encrypted_samples.push(encrypted_sample);
+        key_samples.push(key_sample);
     }
 
-    let mut output_file = BufWriter::new(File::create(output_path)?);
-    output_file.write_all(&encrypted_samples)?;
-    output_file.flush()?;
+    let mut writer = hound::WavWriter::create(output_path, spec).expect("Failed to create WAV writer");
+    for sample in encrypted_samples {
+        writer.write_sample(sample).expect("Failed to write sample");
+    }
+    writer.finalize().expect("Failed to finalize WAV file");
 
-    Ok(())
-}
-
-// Helper function to convert HoundError to io::Error
-fn io_error(e: HoundError) -> io::Error {
-    io::Error::new(io::ErrorKind::Other, e.to_string())
+    let key_file = File::create(key_path).expect("Failed to create key file");
+    serde_json::to_writer(&key_file, &key_samples).expect("Failed to write key file");
 }
