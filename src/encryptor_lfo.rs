@@ -98,7 +98,7 @@ pub fn encrypt_audio_with_lfo(input_path: &str, output_path: &str, lfo_path: &st
     let update_interval = sample_rate; // For example, update LFO parameters every second
 
     for (index, sample) in samples.iter().enumerate() {
-        let sample_f32 = *sample as f32 / i16::MAX as f32; // Correctly convert the sample to f32
+        let sample_f32 = *sample as f32 / i16::MAX as f32; // Convert the sample to f32
     
         if index as f32 % update_interval == 0.0 {
             // Randomize LFO parameters every second
@@ -109,12 +109,14 @@ pub fn encrypt_audio_with_lfo(input_path: &str, output_path: &str, lfo_path: &st
         let lfo_sample = lfo.sample(time);
         lfo_samples.push(lfo_sample);
     
-        let modulated_sample = sample_f32 * (1.0 + lfo_sample);
+        // Apply a more pronounced amplitude modulation effect
+        // This example simply multiplies the audio sample by the LFO sample, but consider adjusting for more noticeable effects
+        let modulated_sample = sample_f32 * lfo_sample; // Adjust this line as needed for your desired effect
         encrypted_samples.push((clip_sample_value(modulated_sample) * i16::MAX as f32) as i16);
     
         time += 1.0 / sample_rate;
     }
-
+    
     // Ensure the encrypted_samples are not all zeros
     // println!("Some encrypted samples: {:?}", &encrypted_samples[..5]); // Debug: Print first few encrypted samples
 
