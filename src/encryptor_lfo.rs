@@ -103,7 +103,6 @@ pub fn encrypt_audio_with_lfo(input_path: &str, output_path: &str, lfo_path: &st
         if index as f32 % update_interval == 0.0 {
             // Randomize LFO parameters every second
             lfo = randomize_lfo_parameters();
-            println!("Updated LFO Parameters: {:?}", lfo);
         }
     
         let lfo_sample = lfo.sample(time);
@@ -116,9 +115,6 @@ pub fn encrypt_audio_with_lfo(input_path: &str, output_path: &str, lfo_path: &st
     
         time += 1.0 / sample_rate;
     }
-    
-    // Ensure the encrypted_samples are not all zeros
-    // println!("Some encrypted samples: {:?}", &encrypted_samples[..5]); // Debug: Print first few encrypted samples
 
     // Adjustments to ensure encrypted audio is audible and modulation key matches audio length
     let mut writer = hound::WavWriter::create(output_path, spec).expect("Failed to create WAV writer");
