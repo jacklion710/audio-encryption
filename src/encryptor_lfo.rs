@@ -4,7 +4,7 @@ use serde::{Serialize, Deserialize};
 use std::f32::consts::PI;
 
 // Define the Waveform enum
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 enum Waveform {
     Sine,
     Square,
@@ -14,8 +14,7 @@ enum Waveform {
 }
 
 // Define the LFO struct
-#[allow(dead_code)]
-struct LFO {
+#[derive(Debug)]struct LFO {
     waveform: Waveform,
     frequency: f32,
     phase: f32,
@@ -38,10 +37,25 @@ impl LFO {
     fn sample(&self, time: f32) -> f32 {
         match self.waveform {
             Waveform::Sine => self.amplitude * (2.0 * PI * self.frequency * time + self.phase).sin() + self.offset,
-            // Add your implementations for other waveforms here
-            _ => 0.0, // Placeholder for other waveforms
+            Waveform::Square => {
+                if (2.0 * PI * self.frequency * time + self.phase).sin() >= 0.0 {
+                    self.amplitude + self.offset
+                } else {
+                    -self.amplitude + self.offset
+                }
+            },
+            Waveform::Triangle => {
+                self.amplitude * (2.0 * PI * self.frequency * time + self.phase).sin().asin() / (PI / 2.0) + self.offset
+            },
+            Waveform::Ramp => {
+                self.amplitude * (((2.0 * PI * self.frequency * time + self.phase) / (2.0 * PI)).fract()) + self.offset
+            },
+            Waveform::Noise => {
+                let mut rng = rand::thread_rng();
+                self.amplitude * (rng.gen_range(-1.0..=1.0)) + self.offset
+            },
         }
-    }
+    }    
 }
 
 // Utility function to randomize LFO parameters
@@ -74,26 +88,44 @@ pub fn encrypt_audio_with_lfo(input_path: &str, output_path: &str, lfo_path: &st
     let spec = reader.spec();
     let samples: Vec<i16> = reader.into_samples::<i16>().map(|s| s.unwrap()).collect();
 
-    let lfo = randomize_lfo_parameters();
+    let sample_rate = spec.sample_rate as f32;
+    let mut lfo = randomize_lfo_parameters(); // Initial LFO parameters
+    println!("Initial LFO Parameters: {:?}", lfo);
+
     let mut encrypted_samples = Vec::new();
     let mut lfo_samples = Vec::new();
-    let sample_rate = spec.sample_rate as f32;
     let mut time = 0.0;
+    let update_interval = sample_rate; // For example, update LFO parameters every second
 
-    for sample in samples.iter().map(|&s| s as f32) {
+    for (index, sample) in samples.iter().enumerate() {
+        let sample_f32 = *sample as f32 / i16::MAX as f32; // Correctly convert the sample to f32
+    
+        if index as f32 % update_interval == 0.0 {
+            // Randomize LFO parameters every second
+            lfo = randomize_lfo_parameters();
+            println!("Updated LFO Parameters: {:?}", lfo);
+        }
+    
         let lfo_sample = lfo.sample(time);
         lfo_samples.push(lfo_sample);
-        let modulated_sample = clip_sample_value(sample + lfo_sample);
-        encrypted_samples.push(modulated_sample as i16);
+    
+        let modulated_sample = sample_f32 * (1.0 + lfo_sample);
+        encrypted_samples.push((clip_sample_value(modulated_sample) * i16::MAX as f32) as i16);
+    
         time += 1.0 / sample_rate;
     }
 
+    // Ensure the encrypted_samples are not all zeros
+    // println!("Some encrypted samples: {:?}", &encrypted_samples[..5]); // Debug: Print first few encrypted samples
+
+    // Adjustments to ensure encrypted audio is audible and modulation key matches audio length
     let mut writer = hound::WavWriter::create(output_path, spec).expect("Failed to create WAV writer");
     for sample in encrypted_samples {
         writer.write_sample(sample).expect("Failed to write sample");
     }
     writer.finalize().expect("Failed to finalize WAV file");
 
+    // Save the LFO modulation sequence, ensuring it matches the audio file's length
     save_lfo_modulation_to_file(&lfo_samples, sample_rate as u32, lfo_path);
 }
 
@@ -107,7 +139,7 @@ fn save_lfo_modulation_to_file(lfo_samples: &[f32], sample_rate: u32, file_path:
     };
     let mut writer = WavWriter::create(file_path, spec).expect("Failed to create LFO WAV writer");
     for &sample in lfo_samples {
-        let sample_int = (sample * i16::MAX as f32) as i16;
+        let sample_int = ((clip_sample_value(sample)) * i16::MAX as f32) as i16; // Clip and scale
         writer.write_sample(sample_int).expect("Failed to write LFO sample");
     }
     writer.finalize().expect("Failed to finalize LFO WAV file");
