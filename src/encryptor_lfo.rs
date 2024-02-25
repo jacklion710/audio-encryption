@@ -123,6 +123,9 @@ pub fn encrypt_audio_with_lfo(input_path: &str, output_path: &str, lfo_path: &st
     }
     writer.finalize().expect("Failed to finalize WAV file");
 
+    println!("Audio samples count: {}", samples.len());
+    println!("LFO samples count: {}", lfo_samples.len());
+
     // Save the LFO modulation sequence, ensuring it matches the audio file's length
     save_lfo_modulation_to_file(&lfo_samples, sample_rate as u32, lfo_path);
 }
