@@ -22,10 +22,17 @@ pub fn decrypt_audio_with_lfo(input_path: &str, output_path: &str, lfo_path: &st
 
     let mut decrypted_samples = Vec::new();
 
-    // Decrypting by subtracting the LFO samples from the encrypted samples.
+    // Decrypting by applying the inverse modulation process.
     for (encrypted_sample, lfo_sample) in encrypted_samples.iter().zip(lfo_samples.iter()) {
-        let decrypted_sample = encrypted_sample.wrapping_sub(*lfo_sample);
-        decrypted_samples.push(decrypted_sample);
+        let encrypted_sample_f32 = *encrypted_sample as f32 / i16::MAX as f32;
+        let lfo_sample_f32 = *lfo_sample as f32 / i16::MAX as f32;
+
+        // Applying the inverse of the original modulation formula.
+        let decrypted_sample_f32 = encrypted_sample_f32 / (1.0 + lfo_sample_f32);
+
+        // Scale and convert back to i16
+        let decrypted_sample_i16 = (decrypted_sample_f32 * i16::MAX as f32) as i16;
+        decrypted_samples.push(decrypted_sample_i16);
     }
 
     // Writing the decrypted samples to the output WAV file.
